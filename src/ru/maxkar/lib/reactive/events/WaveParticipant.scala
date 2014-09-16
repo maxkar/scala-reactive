@@ -25,11 +25,11 @@ final class WaveParticipant(
       onResolved : () ⇒ Unit,
       onCleanup : () ⇒ Unit) {
 
-  /* TODO: Is this a function list or a list of "correlated" nodes? */
   /**
-   * Listeners to invoke when this node is engaged into the wave.
+   * Nodes correlated to this participant. That correlated nodes should
+   * be engaged if this node is engaged.
    */
-  private val engagementListeners = new java.util.ArrayList[Wave ⇒ Unit]
+  private val correlatedNodes = new java.util.ArrayList[WaveParticipant]
 
 
 
@@ -63,6 +63,29 @@ final class WaveParticipant(
 
 
   /* WAVE CLIENT SECTION. */
+
+  /**
+   * Registers a node as correlated to this node.  This method creates
+   * uni-directional relationship: if <code>this</code> node is added to
+   * a wave, then <code>corr</code> node is added to the same wave.
+   * <p>Correlation does not establish any sort of "order" between nodes.
+   * So <code>corr</code> node may be resolved before <code>this</node>.
+   * @param node node correlated to this.
+   */
+  def addCorrelatedNode(corr : WaveParticipant) : Unit =
+    correlatedNodes.add(corr)
+
+
+
+  /**
+   * Removes correlation between <code>this</code> node and <code>corr</code>
+   * node. Does nothing if there is no correlation. If correlation was
+   * established several times, removes one correlation only.
+   */
+  def removeCorrelatedNode(corr : WaveParticipant) : Unit =
+    correlatedNodes.remove(corr)
+
+
 
   /**
    * Attempts to engage this participant into the target wave. Each node
@@ -169,16 +192,16 @@ final class WaveParticipant(
   /* QUEUE INTEGRATION API. */
 
   /**
-   * Handles an engagement event. Fires an engagement listeners for this
-   * node but does not attempts to resolve anything because some nodes
+   * Handles an engagement event. Adds all correlated nodes into the flow
+   * but does not attempts to resolve anything because some nodes
    * may be out of the flow. Gives a chance to participate in the wave to
    * all the dependencies.
    * @param wave current wave.
    */
   private[events] def engageComplete(wave : Wave) : Unit = {
-    val itr = engagementListeners.iterator()
+    val itr = correlatedNodes.iterator()
     while (itr.hasNext())
-      itr.next()(wave)
+      itr.next().engage(wave)
   }
 
 
