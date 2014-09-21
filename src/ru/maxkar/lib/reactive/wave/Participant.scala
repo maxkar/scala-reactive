@@ -1,4 +1,4 @@
-package ru.maxkar.lib.reactive.events
+package ru.maxkar.lib.reactive.wave
 
 import scala.collection.mutable.Queue
 
@@ -20,7 +20,7 @@ import scala.collection.mutable.Queue
  * in the <code>onResolved</code> listeners because that events can
  * be consumed by other nodes in the flow.
  */
-final class WaveParticipant(
+final class Participant(
       onBoot : Wave ⇒ Unit,
       onResolved : () ⇒ Unit,
       onCleanup : () ⇒ Unit) {
@@ -29,7 +29,7 @@ final class WaveParticipant(
    * Nodes correlated to this participant. That correlated nodes should
    * be engaged if this node is engaged.
    */
-  private val correlatedNodes = new java.util.ArrayList[WaveParticipant]
+  private val correlatedNodes = new java.util.ArrayList[Participant]
 
 
 
@@ -44,7 +44,7 @@ final class WaveParticipant(
   /**
    * Queue of functions to invoke when this node is resolved.
    */
-  private val resolutionListeners = new Queue[WaveParticipant]
+  private val resolutionListeners = new Queue[Participant]
 
 
 
@@ -58,7 +58,7 @@ final class WaveParticipant(
   /**
    * Code for the current state.
    */
-  private var state = WaveParticipant.STATE_READY
+  private var state = Participant.STATE_READY
 
 
 
@@ -72,7 +72,7 @@ final class WaveParticipant(
    * So <code>corr</code> node may be resolved before <code>this</node>.
    * @param node node correlated to this.
    */
-  def addCorrelatedNode(corr : WaveParticipant) : Unit =
+  def addCorrelatedNode(corr : Participant) : Unit =
     correlatedNodes.add(corr)
 
 
@@ -82,7 +82,7 @@ final class WaveParticipant(
    * node. Does nothing if there is no correlation. If correlation was
    * established several times, removes one correlation only.
    */
-  def removeCorrelatedNode(corr : WaveParticipant) : Unit =
+  def removeCorrelatedNode(corr : Participant) : Unit =
     correlatedNodes.remove(corr)
 
 
@@ -96,11 +96,11 @@ final class WaveParticipant(
    * phase.
    */
   def engage(implicit wave : Wave) : Unit = {
-    if (state == WaveParticipant.STATE_READY) {
-      state = WaveParticipant.STATE_ENGAGED
+    if (state == Participant.STATE_READY) {
+      state = Participant.STATE_ENGAGED
       wave.enqueueParticipant(this)
     }
-    else if (state != WaveParticipant.STATE_ENGAGED)
+    else if (state != Participant.STATE_ENGAGED)
       throw new IllegalStateException(
         "This node is in incorrect engagement position")
   }
@@ -116,13 +116,13 @@ final class WaveParticipant(
    * in any wave.
    * @throws IllegalStateException if target node is engaged in different * wave.
    */
-  def defer(target : WaveParticipant) : this.type = {
-    if (state != WaveParticipant.STATE_ENGAGED)
+  def defer(target : Participant) : this.type = {
+    if (state != Participant.STATE_ENGAGED)
       throw new IllegalStateException(
         "Cannot defer non-engaged node, state is " + state)
 
     /* Either already resolved or not in this wave. */
-    if (target.state != WaveParticipant.STATE_ENGAGED)
+    if (target.state != Participant.STATE_ENGAGED)
       return this
 
     pendingDeps += 1
@@ -135,7 +135,7 @@ final class WaveParticipant(
   /**
    * List version of defer.
    */
-  def deferI(target : Iterable[WaveParticipant]) : this.type = {
+  def deferI(target : Iterable[Participant]) : this.type = {
     val itr = target.iterator
     while (itr.hasNext)
       defer(itr.next)
@@ -147,7 +147,7 @@ final class WaveParticipant(
   /**
    * Vararg version of defer.
    */
-  def deferV(target : WaveParticipant*) : this.type =
+  def deferV(target : Participant*) : this.type =
     deferI(target)
 
 
@@ -163,7 +163,7 @@ final class WaveParticipant(
    * in any wave.
    * @throws IllegalStateException if target node is engaged in different * wave.
    */
-  def deferCb(callback : Wave ⇒ Unit, target : WaveParticipant) : this.type = {
+  def deferCb(callback : Wave ⇒ Unit, target : Participant) : this.type = {
     preResolutionListeners += callback
     defer(target)
   }
@@ -173,7 +173,7 @@ final class WaveParticipant(
   /**
    * List version of the deferCb.
    */
-  def deferCbI(callback : Wave ⇒ Unit, targets : Iterable[WaveParticipant]) : this.type = {
+  def deferCbI(callback : Wave ⇒ Unit, targets : Iterable[Participant]) : this.type = {
     preResolutionListeners += callback
     deferI(targets)
   }
@@ -184,7 +184,7 @@ final class WaveParticipant(
   /**
    * Vararg version of the deferCb.
    */
-  def deferCbV(callback : Wave ⇒ Unit, targets : WaveParticipant*) : this.type =
+  def deferCbV(callback : Wave ⇒ Unit, targets : Participant*) : this.type =
     deferCbI(callback, targets)
 
 
@@ -198,7 +198,7 @@ final class WaveParticipant(
    * all the dependencies.
    * @param wave current wave.
    */
-  private[events] def engageComplete(wave : Wave) : Unit = {
+  private[wave] def engageComplete(wave : Wave) : Unit = {
     val itr = correlatedNodes.iterator()
     while (itr.hasNext())
       itr.next().engage(wave)
@@ -211,7 +211,7 @@ final class WaveParticipant(
    * node after wave completed initial engagement (so no other nodes
    * will be added into the propagation).
    */
-  private[events] def boot(wave : Wave) : Unit = {
+  private[wave] def boot(wave : Wave) : Unit = {
     onBoot(wave)
 
     /* Try to resolve immediately if possible. */
@@ -229,7 +229,7 @@ final class WaveParticipant(
    * will wait until all dependencies are resolved.
    * @param wave current wave.
    */
-  private[events] def tryResolve(wave : Wave) : Unit = {
+  private[wave] def tryResolve(wave : Wave) : Unit = {
     /* TODO: Copy into another batch? This may stop a little bit
      * earlier than allowed.
      */
@@ -242,7 +242,7 @@ final class WaveParticipant(
     if (pendingDeps > 0)
       return
 
-    state = WaveParticipant.STATE_RESOLVED
+    state = Participant.STATE_RESOLVED
     onResolved()
     wave.enqueueResolved(this)
   }
@@ -269,7 +269,7 @@ final class WaveParticipant(
    * Resets dependencies for all listeners.
    * @param wave current wave.
    */
-  private[events] def notifyDeps(wave : Wave) : Unit =
+  private[wave] def notifyDeps(wave : Wave) : Unit =
     while (!resolutionListeners.isEmpty)
       resolutionListeners.dequeue.depResolved(wave)
 
@@ -278,8 +278,8 @@ final class WaveParticipant(
   /**
    * Cleans this node after the wave propagation.
    */
-  private[events] def cleanup() : Unit = {
-    state = WaveParticipant.STATE_READY
+  private[wave] def cleanup() : Unit = {
+    state = Participant.STATE_READY
     onCleanup()
   }
 }
@@ -288,7 +288,7 @@ final class WaveParticipant(
 
 
 /** Wave participant companion. */
-final object WaveParticipant {
+final object Participant {
   /** Participant is ready to be engaged. */
   private val STATE_READY = 0
 

@@ -1,4 +1,4 @@
-package ru.maxkar.lib.reactive.events
+package ru.maxkar.lib.reactive.wave
 
 import scala.collection.mutable.Queue
 
@@ -8,7 +8,7 @@ import scala.collection.mutable.Queue
  * exactly one event which can be consumed by all the registered
  * listeners.
  */
-final class Wave {
+final class Wave private() {
 
   /** Current propagation state. */
   private var stage = Wave.STAGE_NEW
@@ -22,7 +22,7 @@ final class Wave {
    * do not produce event for this wave), but would not include nodes not
    * reacheable from the engaged nodes.
    */
-  private val engageQueue = new Queue[WaveParticipant]
+  private val engageQueue = new Queue[Participant]
 
 
 
@@ -31,17 +31,7 @@ final class Wave {
    * satisfied but "resolution listeners" not fired. This helps to keep
    * stack depth manageable (no recursive calls from listeners to listeners).
    */
-  private val resolveQueue = new Queue[WaveParticipant]
-
-
-
-  /**
-   * Queue of successfully resolved. These nodes are waiting for
-   * the cleanup. Event pins associated with this nodes are still
-   * holding the value because other nodes in resolveQueue can access
-   * that state. Cleaning will allow nodes to return to "initial" state.
-   */
-  private val cleanupQueue = new Queue[WaveParticipant]
+  private val resolveQueue = new Queue[Participant]
 
 
 
@@ -51,7 +41,7 @@ final class Wave {
    * @param participant participanT to join this wave.
    * @throws IllegalStateException if this wave has passed engagement phase.
    */
-  private[events] def enqueueParticipant(participant : WaveParticipant) : Unit = {
+  private[wave] def enqueueParticipant(participant : Participant) : Unit = {
     if (stage > Wave.STAGE_ENGAGEMENT)
       throw new IllegalStateException(
         "Too late to engage in this wave at phase " + stage)
@@ -68,7 +58,7 @@ final class Wave {
    * @param node node to add.
    * @throws IllegalStateException if this wave is not in resolution state.
    */
-  private[events] def enqueueResolved(node : WaveParticipant) : Unit = {
+  private[wave] def enqueueResolved(node : Participant) : Unit = {
     if (stage < Wave.STAGE_ENGAGEMENT || stage > Wave.STAGE_RESOLUTION)
       throw new IllegalStateException(
         "Bad state for resolution attemts, stage = " + stage)
@@ -78,23 +68,12 @@ final class Wave {
 
 
   /**
-   * Enqueues a node as completely resolved and ready for cleanup.
-   */
-  private[events] def enqueueCleanup(node : WaveParticipant) : Unit = {
-    if (stage < Wave.STAGE_ENGAGEMENT || stage > Wave.STAGE_RESOLUTION)
-      throw new IllegalStateException(
-        "Bad state for cleanup attemts, stage = " + stage)
-    cleanupQueue += node
-  }
-
-
-
-  /**
    * Runs a wave.
    * @throws Error if some nodes were unable to resolve.
    */
-  private[events] def run() : Unit = {
-    val bootQueue = new Queue[WaveParticipant]
+  private[wave] def run() : Unit = {
+    val bootQueue = new Queue[Participant]
+    val cleanupQueue = new Queue[Participant]
 
     stage = Wave.STAGE_ENGAGEMENT
     while (!engageQueue.isEmpty) {
@@ -103,13 +82,19 @@ final class Wave {
       node.engageComplete(this)
     }
 
+
     val totalNodes = bootQueue.size
+
 
     stage = Wave.STAGE_RESOLUTION
     while (!bootQueue.isEmpty)
       bootQueue.dequeue.boot(this)
-    while (!resolveQueue.isEmpty)
-      resolveQueue.dequeue.notifyDeps(this)
+    while (!resolveQueue.isEmpty) {
+      val node = resolveQueue.dequeue
+      node.notifyDeps(this)
+      cleanupQueue += node
+    }
+
 
     if (totalNodes != cleanupQueue.size)
       throw new Error(
@@ -141,4 +126,17 @@ final object Wave {
 
   /** Final death. */
   private val STAGE_DEAD = 4
+
+
+
+  /**
+   * Runs evaluation as part of the change "group" for the new wave.
+   * Wave is resolved before returning from this method.
+   * @param block block to execute on a new wave.
+   */
+  def group(block : Wave ⇒ Unit) : Unit = {
+    val wave = new Wave()
+    block(wave)
+    wave.run()
+  }
 }
