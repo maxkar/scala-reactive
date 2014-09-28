@@ -17,8 +17,7 @@ final class Trigger private[event]() {
 
 
   /** Flow participant for this node. */
-  private val participant = new Participant(
-    _ ⇒ (), () ⇒ (), cleanup)
+  private val participant = new Participant(() ⇒ (), () ⇒ (), cleanup)
 
 
 
@@ -34,9 +33,6 @@ final class Trigger private[event]() {
 
     override def defer(peer : Participant) : Unit =
       peer.defer(participant)
-
-    override def deferBy(peer : Participant, cb : () ⇒ Unit) =
-      peer.deferCb(cb, participant)
   }
 
 

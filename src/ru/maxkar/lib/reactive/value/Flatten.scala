@@ -36,8 +36,10 @@ private[value] final class Flatten[T](
 
 
   /** Participation handler. */
-  private def participate(wave : Wave) : Unit =
-    source.change.deferBy(participant, onBaseResolved)
+  private def participate() : Unit = {
+    source.change.defer(participant)
+    participant.invokeBeforeResolve(onBaseResolved)
+  }
 
 
 
@@ -90,9 +92,6 @@ private[value] final class Flatten[T](
 
     override def defer(node : Participant) : Unit =
       node.defer(participant)
-
-    override def deferBy(node : Participant, cb : () ⇒ Unit) : Unit =
-      node.deferCb(cb, participant)
 
     override def value() : Boolean = changed
   }

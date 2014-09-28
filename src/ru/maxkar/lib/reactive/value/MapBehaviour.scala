@@ -34,7 +34,7 @@ private[value] final class MapBehaviour[S, T](
 
 
   /** Participation handler. */
-  private def participate(wave : Wave) : Unit =
+  private def participate() : Unit =
     source.change.defer(participant)
 
 
@@ -74,9 +74,6 @@ private[value] final class MapBehaviour[S, T](
 
     override def defer(node : Participant) : Unit =
       node.defer(participant)
-
-    override def deferBy(node : Participant, cb : () ⇒ Unit) : Unit =
-      node.deferCb(cb, participant)
 
     override def value() : Boolean = changed
   }

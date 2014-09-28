@@ -21,7 +21,7 @@ import scala.collection.mutable.Queue
  * be consumed by other nodes in the flow.
  */
 final class Participant(
-      onBoot : Wave ⇒ Unit,
+      onBoot : () ⇒ Unit,
       onResolved : () ⇒ Unit,
       onCleanup : () ⇒ Unit) {
 
@@ -133,26 +133,6 @@ final class Participant(
 
 
   /**
-   * List version of defer.
-   */
-  def deferI(target : Iterable[Participant]) : this.type = {
-    val itr = target.iterator
-    while (itr.hasNext)
-      defer(itr.next)
-    this
-  }
-
-
-
-  /**
-   * Vararg version of defer.
-   */
-  def deferV(target : Participant*) : this.type =
-    deferI(target)
-
-
-
-  /**
    * Adds a dependency between nodes along with the callback
    * to invoke when all the nodes are resolved.
    * @param callback callback to invoke when previous node is resolved.
@@ -164,34 +144,23 @@ final class Participant(
    * @throws IllegalStateException if target node is not engaged in the wave.
    */
   def deferCb(callback : () ⇒ Unit, target : Participant) : this.type = {
-    preResolutionListeners += callback
+    invokeBeforeResolve(callback)
     defer(target)
   }
 
 
 
   /**
-   * List version of the deferCb.
-   */
-  def deferCbI(callback : () ⇒ Unit, targets : Iterable[Participant]) : this.type = {
-    preResolutionListeners += callback
-    deferI(targets)
-  }
-
-
-
-
-  /**
-   * Vararg version of the deferCb.
-   */
-  def deferCbV(callback : () ⇒ Unit, targets : Participant*) : this.type =
-    deferCbI(callback, targets)
-
-
-
-  /**
-   * Schedules a function to be invoked before the resolution.
-   * Usefull only for low-level implementations like proxy.
+   * Schedules a function to be invoked before the resolution. This function
+   * will be invoked only all existing defferences are resolved. So it is
+   * guaranteed that in the following code <code>fn</code> will be called only
+   * when <code>nd</code> is resovled.
+   * <code>
+   *   node.defer(nd)
+   *   invokeBeforeResolve(fn)
+   * </code>
+   * That code is save even that sequence happens inside any participant callback
+   * (boot or previously registered function).
    * @param callback callback to invoke.
    * @throws IllegalStateException if target node is not engaged in the wave.
    */
@@ -228,7 +197,7 @@ final class Participant(
    * will be added into the propagation).
    */
   private[wave] def boot(wave : Wave) : Unit = {
-    onBoot(wave)
+    onBoot()
 
     /* Try to resolve immediately if possible. */
     tryResolve(wave)

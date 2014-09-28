@@ -27,7 +27,7 @@ private[value] final class Proxy[T](
 
 
   /** Engages in the participation. */
-  private def participate(w : Wave) : Unit =
+  private def participate() : Unit =
     if (participant != null)
       peer.change.defer(participant)
 
@@ -59,12 +59,6 @@ private[value] final class Proxy[T](
     override def defer(node : Participant) : Unit =
       if (participant != null)
         node.defer(participant)
-
-    override def deferBy(node : Participant, cb : () ⇒ Unit) : Unit =
-      if (participant != null)
-        node.deferCb(cb, participant)
-      else
-        node.invokeBeforeResolve(cb)
 
     override def value() : Boolean =
       if (participant != null)
