@@ -37,7 +37,7 @@ final class Participant(
    * Functions to ivoke before this wave node is finally resolved.
    * These function may install additional deferrances and dependencies.
    */
-  private val preResolutionListeners = new Queue[Wave ⇒ Unit]
+  private val preResolutionListeners = new Queue[() ⇒ Unit]
 
 
 
@@ -161,9 +161,9 @@ final class Participant(
    * @param target "previous" node before this node.
    * @throws IllegalStateException if this node is not engaged
    * in any wave.
-   * @throws IllegalStateException if target node is engaged in different * wave.
+   * @throws IllegalStateException if target node is not engaged in the wave.
    */
-  def deferCb(callback : Wave ⇒ Unit, target : Participant) : this.type = {
+  def deferCb(callback : () ⇒ Unit, target : Participant) : this.type = {
     preResolutionListeners += callback
     defer(target)
   }
@@ -173,7 +173,7 @@ final class Participant(
   /**
    * List version of the deferCb.
    */
-  def deferCbI(callback : Wave ⇒ Unit, targets : Iterable[Participant]) : this.type = {
+  def deferCbI(callback : () ⇒ Unit, targets : Iterable[Participant]) : this.type = {
     preResolutionListeners += callback
     deferI(targets)
   }
@@ -184,8 +184,24 @@ final class Participant(
   /**
    * Vararg version of the deferCb.
    */
-  def deferCbV(callback : Wave ⇒ Unit, targets : Participant*) : this.type =
+  def deferCbV(callback : () ⇒ Unit, targets : Participant*) : this.type =
     deferCbI(callback, targets)
+
+
+
+  /**
+   * Schedules a function to be invoked before the resolution.
+   * Usefull only for low-level implementations like proxy.
+   * @param callback callback to invoke.
+   * @throws IllegalStateException if target node is not engaged in the wave.
+   */
+  def invokeBeforeResolve(callback : () ⇒ Unit) : this.type = {
+    if (state != Participant.STATE_ENGAGED)
+      throw new IllegalStateException(
+        "Cannot schedule invokation for non-engaged node, state is " + state)
+    preResolutionListeners += callback
+    this
+  }
 
 
 
@@ -233,10 +249,8 @@ final class Participant(
     /* TODO: Copy into another batch? This may stop a little bit
      * earlier than allowed.
      */
-    while (pendingDeps == 0 && !preResolutionListeners.isEmpty) {
-      val listener = preResolutionListeners.dequeue
-      listener(wave)
-    }
+    while (pendingDeps == 0 && !preResolutionListeners.isEmpty)
+      preResolutionListeners.dequeue()()
 
     /* New deps were discovered, return. */
     if (pendingDeps > 0)

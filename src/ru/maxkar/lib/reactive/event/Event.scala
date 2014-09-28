@@ -41,8 +41,23 @@ trait Event[T] {
    * Defers evaluation of target node until this event node
    * is completely resolved (i.e. all events are generated)
    * during current wave.
+   * @param target target to defer. This node should be engaged in the wave.
    */
   def defer(target : Participant) : Unit
+
+
+
+  /**
+   * Defers evaluation of function and note until this event
+   * node is completely resolved (i.e. all events are generated)
+   * during current wave. After the resolution, provided callback
+   * is invoked first. That callback may further defer participant
+   * in question.
+   * @param target target to defer. This node should be engaged in the wave.
+   * @param callback callback to invoke after this event is resolved. That
+   * callback can defer <code>target</code> even more.
+   */
+  def deferBy(target : Participant, callback : () ⇒ Unit) : Unit
 }
 
 

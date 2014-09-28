@@ -77,6 +77,9 @@ private[value] final class ApplicativeBehaviour[S, R](
     override def defer(node : Participant) : Unit =
       node.defer(participant)
 
+    override def deferBy(node : Participant, cb : () ⇒ Unit) : Unit =
+      node.deferCb(cb, participant)
+
     override def value() : Boolean = changed
   }
 }

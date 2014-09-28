@@ -21,10 +21,10 @@ final class ValueTest extends FunSuite{
 
   test("Test value of the variable") {
     val v1 = variable(44)
-    assert(44 === v1.b.value)
+    assert(44 === v1.behaviour.value)
 
     v1.set(55)
-    assert(55 === v1.b.value)
+    assert(55 === v1.behaviour.value)
   }
 
 
@@ -33,23 +33,23 @@ final class ValueTest extends FunSuite{
     val v1 = variable("AOE")
     val v2 = variable("EOA")
 
-    assert("AOE" === v1.b.value)
-    assert("EOA" === v2.b.value)
+    assert("AOE" === v1.behaviour.value)
+    assert("EOA" === v2.behaviour.value)
 
     Wave.group(txn ⇒ {
       v1.wavedSet("35", txn)
       v2.wavedSet("TT", txn)
     })
 
-    assert("35" === v1.b.value)
-    assert("TT" === v2.b.value)
+    assert("35" === v1.behaviour.value)
+    assert("TT" === v2.behaviour.value)
   }
 
 
 
   test("Test that no extra events are fired on vars") {
     val v = variable(3)
-    val ups = count(v.b)
+    val ups = count(v)
 
     assert(0 === ups())
 
@@ -66,7 +66,7 @@ final class ValueTest extends FunSuite{
     def fn(x : Int) : Int = x + 5
 
     val v = variable(6)
-    val vv = fn _ :> v.b
+    val vv = fn _ :> v
 
     assert(11 === vv.value)
 
@@ -80,7 +80,7 @@ final class ValueTest extends FunSuite{
     def fn(x : Int) : Int = if (x > 6) 77 else x - 3
 
     val v = variable(33)
-    val vv = fn _ :> v.b
+    val vv = fn _ :> v
     val ups = count(vv)
 
     assert(vv.value === 77)
@@ -103,7 +103,7 @@ final class ValueTest extends FunSuite{
     val v1 = variable(10)
     val v2 = variable(3)
 
-    val v = fn _ :> v1.b :> v2.b
+    val v = fn _ :> v1 :> v2
     assert(23 === v.value)
 
     v1.set(5)
@@ -122,7 +122,7 @@ final class ValueTest extends FunSuite{
     val v2 = variable(0)
     val v3 = variable(5)
 
-    val v = fn _ :> v1.b :> v2.b :> v3.b
+    val v = fn _ :> v1 :> v2 :> v3
     val ups = count(v)
     assert(5 === v.value)
     assert(0 === ups())
@@ -144,5 +144,177 @@ final class ValueTest extends FunSuite{
     v3.set(0)
     assert(6 === v.value)
     assert(1 === ups())
+  }
+
+
+
+  test("Proxy is proxy.") {
+    val v = variable(5)
+    implicit val session = proxySession()
+    val f = proxy(v)
+    val g = proxy(v)
+
+
+    val fc = count(f)
+    val gc = count(g)
+
+
+    assert(5 === f.value)
+    assert(5 === g.value)
+    assert(0 === fc())
+    assert(0 === gc())
+
+
+    v.set(2)
+    assert(2 === f.value)
+    assert(2 === g.value)
+    assert(1 === fc())
+    assert(1 === gc())
+
+    session.destroy()
+    v.set(7)
+    assert(1 === fc())
+    assert(1 === gc())
+  }
+
+
+
+  test("Proxy can be detached during a propagation.") {
+    val v = variable(5)
+    implicit val session = proxySession()
+    def f(v : Int) : Int = {
+      if (v == 10)
+        session.destroy()
+      v
+    }
+
+    val vv = f _ :> proxy(v)
+
+    val ups = count(vv)
+    assert(0 === ups())
+    assert(5 === vv.value)
+
+    v.set(7)
+    assert(1 === ups())
+    assert(7 === vv.value)
+
+    v.set(10)
+
+    /* Number of updates is not specified. Just check that proxy is detached. */
+    val sups = ups()
+    v.set(20)
+    assert(sups === ups())
+  }
+
+
+
+  test("Test join functionality.") {
+    val v1 = variable("Abc")
+    val v2 = variable("Def")
+    val v3 = variable(v1.behaviour)
+    val v = join(v3)
+
+    val ups = count(v)
+
+    assert("Abc" === v.value)
+    assert(0 === ups())
+
+    v1.set("XyZ")
+    assert("XyZ" === v.value)
+    assert(1 === ups())
+
+    v3.set(v2.behaviour)
+    assert("Def" === v.value)
+    assert(2 === ups())
+
+    v1.set("XZXX")
+    assert("Def" === v.value)
+    assert(2 === ups())
+
+    v2.set("Fed")
+    assert("Fed" === v.value)
+    assert(3 === ups())
+  }
+
+
+
+  test("Test monadic lift. ") {
+    val v1 = variable("Abc")
+    val v2 = variable("Def")
+    val v3 = variable(true)
+
+    def x(v : Boolean) = if (v) v1.behaviour else v2.behaviour
+
+    val v = x _ :>> v3
+    val ups = count(v)
+
+    assert("Abc" === v.value)
+    assert(0 === ups())
+
+    v1.set("Cba")
+    assert("Cba" === v.value)
+    assert(1 === ups())
+
+    v3.set(false)
+    assert("Def" === v.value)
+    assert(2 === ups())
+
+    v1.set("XXX")
+    assert("Def" === v.value)
+    assert(2 === ups())
+
+    v2.set("XZA")
+    assert("XZA" === v.value)
+    assert(3 === ups())
+
+    v3.set(true)
+    assert("XXX" === v.value)
+    assert(4 === ups())
+  }
+
+
+
+  test("Test flipping order, see comment. ") {
+    /*
+     * Tests a "flipping" of the order. Propagations must run successfully
+     * when there are some valid update order. This must be the case even
+     * when new dependency graph is built during the update. This test checks
+     * that update is running succesfully even partial order between to elements
+     * changes on the opposite.
+     *
+     * NOTE!!!
+     * This is the example why "engage" dependency cannot define an evaluation
+     * order. Attempt to do so will force you to remove dependecy "on the fly"
+     * for the "dependent" node.
+     */
+    object FlipTest {
+      val a = variable(false)
+      val c = f _ :>> a
+      val b = g _ :>> a
+
+      def f(v : Boolean) : Behaviour[Boolean] = if (v) b else a
+      def g(v : Boolean) : Behaviour[Boolean] = if (v) a else c
+    }
+
+    def m(v1 : Boolean)(v2 : Boolean) =
+      (if (v1) 2 else 0) + (if (v2) 1 else 0)
+
+    val r = m _ :> FlipTest.b :> FlipTest.c
+    val ups = count(r)
+
+    assert(0 === r.value)
+    assert(0 === ups())
+
+    FlipTest.a.set(true)
+    assert(3 === r.value)
+    assert(1 === ups())
+
+    FlipTest.a.set(false)
+    assert(0 === r.value)
+    assert(2 === ups())
+
+    FlipTest.a.set(true)
+    assert(3 === r.value)
+    assert(3 === ups())
   }
 }

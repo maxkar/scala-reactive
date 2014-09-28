@@ -34,6 +34,9 @@ final class Trigger private[event]() {
 
     override def defer(peer : Participant) : Unit =
       peer.defer(participant)
+
+    override def deferBy(peer : Participant, cb : () ⇒ Unit) =
+      peer.deferCb(cb, participant)
   }
 
 

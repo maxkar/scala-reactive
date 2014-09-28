@@ -4,16 +4,13 @@ import ru.maxkar.lib.reactive.event.Event
 import ru.maxkar.lib.reactive.wave.Participant
 import ru.maxkar.lib.reactive.wave.Wave
 
-
 /**
- * Behaviour which applies a "map" function to get another reactive value.
- * @param S source type.
- * @param T destination (value) type.
- * @param mapper map function.
- * @param source source behaviour.
+ * Flatten behaviour. Joins two Behaviour[Behaviour[T]] into Behaviour[T].
+ * @param T value type.
+ * @param source behaviour to join.
  */
-private[value] final class MapBehaviour[S, T](
-      mapper : S ⇒ T, source : Behaviour[S])
+private[value] final class Flatten[T](
+      source : Behaviour[Behaviour[T]])
     extends Behaviour[T] {
 
   /** Wave participant. */
@@ -22,9 +19,14 @@ private[value] final class MapBehaviour[S, T](
   source.change.addCorrelatedNode(participant)
 
 
+  /** Peer behaviour. */
+  private var nestedSource = source.value
+  nestedSource.change.addCorrelatedNode(participant)
+
+
 
   /** Current value. */
-  private var currentValue = mapper(source.value)
+  private var currentValue = nestedSource.value
 
 
 
@@ -35,17 +37,31 @@ private[value] final class MapBehaviour[S, T](
 
   /** Participation handler. */
   private def participate(wave : Wave) : Unit =
-    source.change.defer(participant)
+    source.change.deferBy(participant, onBaseResolved)
+
+
+
+  /** Handles a "base resolved" event. */
+  private def onBaseResolved() : Unit =
+    source.value.change.defer(participant)
 
 
 
   /** Marks this node as resovled. */
   private def resolved() : Unit = {
     /* No update, just return. */
-    if (!source.change.value)
+    if (!source.change.value && !nestedSource.change.value)
       return
 
-    val newValue = mapper(source.value)
+    /* Update flattened source. */
+    if (source.change.value) {
+      nestedSource.change.removeCorrelatedNode(participant)
+      nestedSource = source.value
+      nestedSource.change.addCorrelatedNode(participant)
+    }
+
+    val newValue = nestedSource.value
+
     if (newValue == currentValue)
       return
 

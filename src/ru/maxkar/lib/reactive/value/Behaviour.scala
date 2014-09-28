@@ -64,17 +64,86 @@ object Behaviour {
 
 
 
-  /* Automatic function uplift. */
+  /**
+   * Creates a proxying session.
+   * @return new proxying session.
+   */
+  def proxySession() : Session = new Session()
+
+
+
+  /** Automatic function uplift. */
   implicit class MapFnUplift[S, D](val value : S ⇒ D) extends AnyVal {
     @inline
     def :> (src : Behaviour[S]) : Behaviour[D] = src :< value
   }
 
 
-  /* More applicative ops. */
+  /** More applicative ops. */
   implicit class AppUnUplift[S, D](val value : Behaviour[S ⇒ D]) extends AnyVal {
     @inline
     def :> (src : Behaviour[S]) : Behaviour[D] =
       new ApplicativeBehaviour(value, src)
+
+    @inline
+    def :> (src : S) : Behaviour[D] = value :< (fn ⇒ fn(src))
   }
+
+
+
+  /** Monad-like function application. */
+  implicit class MonadLikeFnApp[S, D](val value : S ⇒ Behaviour[D]) extends AnyVal {
+    @inline
+    def :>> (src : Behaviour[S]) : Behaviour[D] =
+      join(value :> src)
+  }
+
+
+
+  /** Monadic ops! */
+  implicit class MonadLikeUnApp[S, D](
+        val value : Behaviour[S ⇒ Behaviour[D]])
+      extends AnyVal {
+    @inline
+    def :>> (src : Behaviour[S]) : Behaviour[D] = join(value :> src)
+
+
+    @inline
+    def :>> (src : S) : Behaviour[D] = join(value :> src)
+  }
+
+
+
+  /** Automatic var conversion. */
+  @inline
+  implicit def variable2behavior[T](variable : Variable[T]) : Behaviour[T] =
+    variable.behaviour
+
+
+
+  /**
+   * Creates a proxy for the behaviour. While session is alive, proxy
+   * will engage in the same wave as the original behaviour and will
+   * have the same change event value. However, after session is destroyed,
+   * proxy will be detached from the underlying value.
+   * This can be usefull for temporary graphs (like models for dialogs).
+   * @param T value type.
+   * @param base value to proxy to.
+   * @param session proxying session. Sessions group proxies to each other.
+   * @return proxy for the <code>base</code> behaviour.
+   */
+  def proxy[T](base : Behaviour[T])(implicit session : Session) : Behaviour[T] = {
+    session.ensureAlive()
+    val proxy = new Proxy(base)
+    session += proxy.detach
+    proxy
+  }
+
+
+
+  /**
+   * Joins nested behaviours into one simple behaviour.
+   */
+  def join[T](base : Behaviour[Behaviour[T]]) : Behaviour[T] =
+    new Flatten(base)
 }

@@ -20,7 +20,7 @@ final class Variable[T] private[value] (
 
 
   /** Behaviour associated with this variable. */
-  val b : Behaviour[T] = new Behaviour[T] {
+  val behaviour : Behaviour[T] = new Behaviour[T] {
     override def value() : T = currentValue
 
     override val change : Event[Boolean] = trigger.event
