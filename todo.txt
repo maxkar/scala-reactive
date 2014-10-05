@@ -1,17 +1,4 @@
--- Main section --
-
-* Behavior proxy
-* Monadic application
-
-
 -- Remaining section --
 
-* Implicit wave/wave context for all reactive operations.
 * Equality check for the values.Variable
 * Update value only at the commit phase for the variable.
-* Do not pass wave when not needed
-* Correlated nodes should be marked as deps by deafult? 
-  What if deps changed during the wave?
-* Ability to create events from participant and event accessor
- (Variable, MapBehaviour).
-* Inheritance VS composition for variables, etc...

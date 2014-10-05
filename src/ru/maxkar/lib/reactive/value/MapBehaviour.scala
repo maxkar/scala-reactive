@@ -70,16 +70,5 @@ private[value] final class MapBehaviour[S, T](
 
   override def value() : T = currentValue
 
-  override val change : Event[Boolean] = new Event[Boolean] {
-    override def addCorrelatedNode(node : Participant) : Unit =
-      participant.addCorrelatedNode(node)
-
-    override def removeCorrelatedNode(node : Participant) : Unit =
-      participant.removeCorrelatedNode(node)
-
-    override def defer(node : Participant) : Unit =
-      node.defer(participant)
-
-    override def value() : Boolean = changed
-  }
+  override val change = Event.fromParticipant(participant, changed)
 }

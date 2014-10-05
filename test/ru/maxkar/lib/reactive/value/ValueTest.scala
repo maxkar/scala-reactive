@@ -21,10 +21,10 @@ final class ValueTest extends FunSuite{
 
   test("Test value of the variable") {
     val v1 = variable(44)
-    assert(44 === v1.behaviour.value)
+    assert(44 === v1.value)
 
     v1.set(55)
-    assert(55 === v1.behaviour.value)
+    assert(55 === v1.value)
   }
 
 
@@ -33,16 +33,16 @@ final class ValueTest extends FunSuite{
     val v1 = variable("AOE")
     val v2 = variable("EOA")
 
-    assert("AOE" === v1.behaviour.value)
-    assert("EOA" === v2.behaviour.value)
+    assert("AOE" === v1.value)
+    assert("EOA" === v2.value)
 
     Wave.group(txn ⇒ {
       v1.wavedSet("35", txn)
       v2.wavedSet("TT", txn)
     })
 
-    assert("35" === v1.behaviour.value)
-    assert("TT" === v2.behaviour.value)
+    assert("35" === v1.value)
+    assert("TT" === v2.value)
   }
 
 
@@ -151,7 +151,7 @@ final class ValueTest extends FunSuite{
   test("Test join functionality.") {
     val v1 = variable("Abc")
     val v2 = variable("Def")
-    val v3 = variable(v1.behaviour)
+    val v3 = variable(v1)
     val v = join(v3)
 
     val ups = count(v)
@@ -163,7 +163,7 @@ final class ValueTest extends FunSuite{
     assert("XyZ" === v.value)
     assert(1 === ups())
 
-    v3.set(v2.behaviour)
+    v3.set(v2)
     assert("Def" === v.value)
     assert(2 === ups())
 
@@ -183,7 +183,7 @@ final class ValueTest extends FunSuite{
     val v2 = variable("Def")
     val v3 = variable(true)
 
-    def x(v : Boolean) = if (v) v1.behaviour else v2.behaviour
+    def x(v : Boolean) = if (v) v1 else v2
 
     val v = x _ :>> v3
     val ups = count(v)

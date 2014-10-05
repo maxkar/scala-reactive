@@ -26,17 +26,8 @@ final class Session private[value]() extends Lifespan {
 
 
 
-  /**
-   * Adds a destructor to this session.
-   */
-  private[value] def += (item : () ⇒ Unit) =
-    items += item
-
-
-
   override def onDispose(item : () ⇒ Unit) : Unit = {
-    if (items == null)
-      throw new IllegalStateException("Session is already destroyed")
+    ensureAlive()
     items += item
   }
 

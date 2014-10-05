@@ -61,6 +61,7 @@ object Behaviour {
   import scala.language.implicitConversions
 
 
+
   /**
    * Lifespan which lasts forever. This lifespan cannot  be destroyed.
    * It is useful for providing "global" models and bindings. This lifespan
@@ -80,12 +81,23 @@ object Behaviour {
 
 
   /**
-   * Creates a proxying session. Session created is child of the
+   * Convents value into behaviour constant.
+   * @param v behaviour value.
+   */
+  def const[T](v : T) : Behaviour[T] = new Behaviour[T] {
+    override def value() = v
+    override val change = Event.constFalseEvent
+  }
+
+
+
+  /**
+   * Creates a new (nested) session. Session created is child of the
    * provided lifespan. When parent lifespan is destroyed, this session
    * is also destroyed.
    * @return new proxying session.
    */
-  def proxySession()(implicit lifespan : Lifespan) : Session = {
+  def newSession()(implicit lifespan : Lifespan) : Session = {
     val res = new Session()
     lifespan.onDispose(res.destroy)
     res
@@ -135,13 +147,6 @@ object Behaviour {
     def :>> (src : S)(implicit lifespan : Lifespan) : Behaviour[D] =
       join(value.:>(src)(lifespan))(lifespan)
   }
-
-
-
-  /** Automatic var conversion. */
-  @inline
-  implicit def variable2behavior[T](variable : Variable[T]) : Behaviour[T] =
-    variable.behaviour
 
 
 

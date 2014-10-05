@@ -52,6 +52,38 @@ trait Event[T] {
  * Event access point.
  */
 object Event {
+  /** Empty event with fixed false value. */
+  val constFalseEvent : Event[Boolean] = new Event[Boolean] {
+    override def value() = false
+    override def addCorrelatedNode(node : Participant) = ()
+    override def removeCorrelatedNode(node : Participant) = ()
+    override def defer(node : Participant) = ()
+  }
+
+
+
   /** Creates a new "trigger" event. */
   def trigger() : Trigger = new Trigger()
+
+
+
+  /**
+   * Creates a basic event from node and producer function.
+   * All correlations and deferrances will be associated with
+   * the target paticipant. Value of the event will be retreived
+   * using a given producer.
+   * @param T event type.
+   * @param participant participant associated with the event node.
+   * @param event event producing function.
+   */
+  def fromParticipant[T](participant : Participant, event : ⇒ T) : Event[T] =
+    new Event[T] {
+      override def value() : T = event
+      override def addCorrelatedNode(node : Participant) : Unit =
+        participant.addCorrelatedNode(node)
+      override def removeCorrelatedNode(node : Participant) : Unit =
+        participant.removeCorrelatedNode(node)
+      override def defer(node : Participant) : Unit =
+        node.defer(participant)
+    }
 }

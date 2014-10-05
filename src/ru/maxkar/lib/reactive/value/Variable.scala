@@ -12,19 +12,11 @@ import ru.maxkar.lib.reactive.wave.Wave
  * @param value currentValue (and initial) value.
  */
 final class Variable[T] private[value] (
-      private var currentValue : T) {
+      private var currentValue : T)
+    extends Behaviour[T] {
 
   /** Event trigger associated with this variable. */
   private val trigger = Event.trigger()
-
-
-
-  /** Behaviour associated with this variable. */
-  val behaviour : Behaviour[T] = new Behaviour[T] {
-    override def value() : T = currentValue
-
-    override val change : Event[Boolean] = trigger.event
-  }
 
 
 
@@ -50,4 +42,10 @@ final class Variable[T] private[value] (
    */
   def set(newValue : T) : Unit =
     Wave.group(wave ⇒ wavedSet(newValue, wave))
+
+
+
+  /* IMPLEMENTATION. */
+  override def value() : T = currentValue
+  override val change : Event[Boolean] = trigger.event
 }
