@@ -5,8 +5,9 @@ package ru.maxkar.lib.reactive.value
  * Value proxying session. All proxies created in the context of this
  * session will be detached from underlying values when this session
  * is closed.
+ * Session is effectively a lifespan for all chages made in the session.
  */
-final class Session private[value]() {
+final class Session private[value]() extends Lifespan {
   /**
    * Items in the session.
    */
@@ -30,6 +31,14 @@ final class Session private[value]() {
    */
   private[value] def += (item : () ⇒ Unit) =
     items += item
+
+
+
+  override def onDispose(item : () ⇒ Unit) : Unit = {
+    if (items == null)
+      throw new IllegalStateException("Session is already destroyed")
+    items += item
+  }
 
 
 

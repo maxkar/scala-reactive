@@ -62,6 +62,13 @@ private[value] final class ApplicativeBehaviour[S, R](
 
 
 
+  private[value] def dispose() : Unit = {
+    fn.change.removeCorrelatedNode(participant)
+    base.change.removeCorrelatedNode(participant)
+  }
+
+
+
 
   /* IMPLEMENTATION. */
 

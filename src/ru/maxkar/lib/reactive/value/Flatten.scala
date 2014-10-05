@@ -13,6 +13,13 @@ private[value] final class Flatten[T](
       source : Behaviour[Behaviour[T]])
     extends Behaviour[T] {
 
+  /**
+   * Flag, indicating that this node is disposed.
+   */
+  private var disposed : Boolean = false
+
+
+
   /** Wave participant. */
   private val participant = new Participant(
     participate, resolved, reset)
@@ -51,6 +58,9 @@ private[value] final class Flatten[T](
 
   /** Marks this node as resovled. */
   private def resolved() : Unit = {
+    if (disposed)
+      return
+
     /* No update, just return. */
     if (!source.change.value && !nestedSource.change.value)
       return
@@ -75,6 +85,15 @@ private[value] final class Flatten[T](
 
   /** Resets this node after wave completion. */
   private def reset() : Unit = changed = false
+
+
+
+  /** Disposes this node. */
+  private[value] def dispose() : Unit = {
+    source.change.removeCorrelatedNode(participant)
+    nestedSource.change.removeCorrelatedNode(participant)
+    disposed = true
+  }
 
 
 

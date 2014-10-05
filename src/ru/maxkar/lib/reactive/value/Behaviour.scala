@@ -45,8 +45,11 @@ trait Behaviour[+T] {
    * Map function applicator.
    * @param mapper mapper function.
    */
-  def :<[R](mapper : T ⇒ R) : Behaviour[R] =
-    new MapBehaviour(mapper, this)
+  def :<[R](mapper : T ⇒ R)(implicit lifespan : Lifespan) : Behaviour[R] = {
+    val res = new MapBehaviour(mapper, this)
+    lifespan.onDispose(res.dispose)
+    res
+  }
 }
 
 
@@ -57,6 +60,18 @@ trait Behaviour[+T] {
 object Behaviour {
   import scala.language.implicitConversions
 
+
+  /**
+   * Lifespan which lasts forever. This lifespan cannot  be destroyed.
+   * It is useful for providing "global" models and bindings. This lifespan
+   * is used by default.
+   */
+  implicit val forever : Lifespan = new Lifespan {
+    override def onDispose(listener : () ⇒ Unit) : Unit = ()
+  }
+
+
+
   /** Creates a new behaviour variable.
    * @param v initial value.
    */
@@ -65,37 +80,46 @@ object Behaviour {
 
 
   /**
-   * Creates a proxying session.
+   * Creates a proxying session. Session created is child of the
+   * provided lifespan. When parent lifespan is destroyed, this session
+   * is also destroyed.
    * @return new proxying session.
    */
-  def proxySession() : Session = new Session()
+  def proxySession()(implicit lifespan : Lifespan) : Session = {
+    val res = new Session()
+    lifespan.onDispose(res.destroy)
+    res
+  }
 
 
 
   /** Automatic function uplift. */
   implicit class MapFnUplift[S, D](val value : S ⇒ D) extends AnyVal {
     @inline
-    def :> (src : Behaviour[S]) : Behaviour[D] = src :< value
+    def :> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
+      src.:<(value)(lifespan)
   }
+
 
 
   /** More applicative ops. */
   implicit class AppUnUplift[S, D](val value : Behaviour[S ⇒ D]) extends AnyVal {
-    @inline
-    def :> (src : Behaviour[S]) : Behaviour[D] =
-      new ApplicativeBehaviour(value, src)
+    def :> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] = {
+      val res = new ApplicativeBehaviour(value, src)
+      lifespan.onDispose(res.dispose)
+      res
+    }
 
-    @inline
-    def :> (src : S) : Behaviour[D] = value :< (fn ⇒ fn(src))
+    def :> (src : S)(implicit lifespan : Lifespan) : Behaviour[D] =
+      value.:<(fn ⇒ fn(src))(lifespan)
   }
 
 
 
   /** Monad-like function application. */
   implicit class MonadLikeFnApp[S, D](val value : S ⇒ Behaviour[D]) extends AnyVal {
-    @inline
-    def :>> (src : Behaviour[S]) : Behaviour[D] =
-      join(value :> src)
+    def :>> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
+      join(value.:>(src)(lifespan))(lifespan)
   }
 
 
@@ -104,12 +128,12 @@ object Behaviour {
   implicit class MonadLikeUnApp[S, D](
         val value : Behaviour[S ⇒ Behaviour[D]])
       extends AnyVal {
-    @inline
-    def :>> (src : Behaviour[S]) : Behaviour[D] = join(value :> src)
+    def :>> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
+      join(value.:>(src)(lifespan))(lifespan)
 
 
-    @inline
-    def :>> (src : S) : Behaviour[D] = join(value :> src)
+    def :>> (src : S)(implicit lifespan : Lifespan) : Behaviour[D] =
+      join(value.:>(src)(lifespan))(lifespan)
   }
 
 
@@ -122,28 +146,11 @@ object Behaviour {
 
 
   /**
-   * Creates a proxy for the behaviour. While session is alive, proxy
-   * will engage in the same wave as the original behaviour and will
-   * have the same change event value. However, after session is destroyed,
-   * proxy will be detached from the underlying value.
-   * This can be usefull for temporary graphs (like models for dialogs).
-   * @param T value type.
-   * @param base value to proxy to.
-   * @param session proxying session. Sessions group proxies to each other.
-   * @return proxy for the <code>base</code> behaviour.
-   */
-  def proxy[T](base : Behaviour[T])(implicit session : Session) : Behaviour[T] = {
-    session.ensureAlive()
-    val proxy = new Proxy(base)
-    session += proxy.detach
-    proxy
-  }
-
-
-
-  /**
    * Joins nested behaviours into one simple behaviour.
    */
-  def join[T](base : Behaviour[Behaviour[T]]) : Behaviour[T] =
-    new Flatten(base)
+  def join[T](base : Behaviour[Behaviour[T]])(implicit lifespan : Lifespan) : Behaviour[T] = {
+    val res = new Flatten(base)
+    lifespan.onDispose(res.dispose)
+    res
+  }
 }

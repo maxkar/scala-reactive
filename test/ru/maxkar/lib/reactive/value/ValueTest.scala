@@ -148,66 +148,6 @@ final class ValueTest extends FunSuite{
 
 
 
-  test("Proxy is proxy.") {
-    val v = variable(5)
-    implicit val session = proxySession()
-    val f = proxy(v)
-    val g = proxy(v)
-
-
-    val fc = count(f)
-    val gc = count(g)
-
-
-    assert(5 === f.value)
-    assert(5 === g.value)
-    assert(0 === fc())
-    assert(0 === gc())
-
-
-    v.set(2)
-    assert(2 === f.value)
-    assert(2 === g.value)
-    assert(1 === fc())
-    assert(1 === gc())
-
-    session.destroy()
-    v.set(7)
-    assert(1 === fc())
-    assert(1 === gc())
-  }
-
-
-
-  test("Proxy can be detached during a propagation.") {
-    val v = variable(5)
-    implicit val session = proxySession()
-    def f(v : Int) : Int = {
-      if (v == 10)
-        session.destroy()
-      v
-    }
-
-    val vv = f _ :> proxy(v)
-
-    val ups = count(vv)
-    assert(0 === ups())
-    assert(5 === vv.value)
-
-    v.set(7)
-    assert(1 === ups())
-    assert(7 === vv.value)
-
-    v.set(10)
-
-    /* Number of updates is not specified. Just check that proxy is detached. */
-    val sups = ups()
-    v.set(20)
-    assert(sups === ups())
-  }
-
-
-
   test("Test join functionality.") {
     val v1 = variable("Abc")
     val v2 = variable("Def")

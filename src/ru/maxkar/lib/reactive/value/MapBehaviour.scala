@@ -60,6 +60,11 @@ private[value] final class MapBehaviour[S, T](
 
 
 
+  /** Disposes this node. */
+  private[value] def dispose() : Unit =
+    source.change.removeCorrelatedNode(participant)
+
+
 
   /* IMPLEMENTATION. */
 
