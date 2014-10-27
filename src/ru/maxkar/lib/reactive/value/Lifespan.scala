@@ -17,3 +17,32 @@ trait Lifespan {
    */
   def onDispose(listener : () ⇒ Unit) : Unit
 }
+
+
+/**
+ * Lifespan companion.
+ */
+object Lifespan {
+  /**
+   * Lifespan which lasts forever. This lifespan cannot  be destroyed.
+   * It is useful for providing "global" models and bindings. This lifespan
+   * is used by default.
+   */
+  val forever : Lifespan = new Lifespan {
+    override def onDispose(listener : () ⇒ Unit) : Unit = ()
+  }
+
+
+
+  /**
+   * Creates a new (nested) session. Session created is child of the
+   * provided lifespan. When parent lifespan is destroyed, this session
+   * is also destroyed.
+   * @return new proxying session.
+   */
+  def mkSession()(implicit lifespan : Lifespan) : Session = {
+    val res = new Session()
+    lifespan.onDispose(res.destroy)
+    res
+  }
+}

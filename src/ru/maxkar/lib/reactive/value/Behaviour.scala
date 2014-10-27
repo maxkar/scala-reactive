@@ -61,18 +61,6 @@ object Behaviour {
   import scala.language.implicitConversions
 
 
-
-  /**
-   * Lifespan which lasts forever. This lifespan cannot  be destroyed.
-   * It is useful for providing "global" models and bindings. This lifespan
-   * is used by default.
-   */
-  implicit val forever : Lifespan = new Lifespan {
-    override def onDispose(listener : () ⇒ Unit) : Unit = ()
-  }
-
-
-
   /** Creates a new behaviour variable.
    * @param v initial value.
    */
@@ -88,21 +76,6 @@ object Behaviour {
     override def value() = v
     override val change = Event.constFalseEvent
   }
-
-
-
-  /**
-   * Creates a new (nested) session. Session created is child of the
-   * provided lifespan. When parent lifespan is destroyed, this session
-   * is also destroyed.
-   * @return new proxying session.
-   */
-  def newSession()(implicit lifespan : Lifespan) : Session = {
-    val res = new Session()
-    lifespan.onDispose(res.destroy)
-    res
-  }
-
 
 
   /** Automatic function uplift. */
