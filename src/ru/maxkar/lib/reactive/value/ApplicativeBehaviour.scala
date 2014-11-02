@@ -11,13 +11,14 @@ import ru.maxkar.lib.reactive.wave.Wave
  */
 private[value] final class ApplicativeBehaviour[S, R](
       fn : Behaviour[S ⇒ R],
-      base : Behaviour[S])
+      base : Behaviour[S],
+      context : BindContext)
     extends Behaviour[R] {
 
 
   /** Wave participant. */
-  private val participant = new Participant(
-    participate, resolved, reset)
+  private val participant =
+    context.update.participant(participate, resolved, reset)
   fn.change.addCorrelatedNode(participant)
   base.change.addCorrelatedNode(participant)
 
@@ -34,7 +35,7 @@ private[value] final class ApplicativeBehaviour[S, R](
 
 
   /** Participation handler. */
-  private def participate() : Unit = {
+  private def participate(w : Wave) : Unit = {
     fn.change.defer(participant)
     base.change.defer(participant)
   }

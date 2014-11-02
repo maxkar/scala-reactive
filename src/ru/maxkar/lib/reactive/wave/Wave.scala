@@ -8,7 +8,7 @@ import scala.collection.mutable.Queue
  * exactly one event which can be consumed by all the registered
  * listeners.
  */
-final class Wave private() {
+final class Wave private() extends Participable {
 
   /** Current propagation state. */
   private var stage = Wave.STAGE_NEW
@@ -27,12 +27,35 @@ final class Wave private() {
 
 
   /**
+   * Item boot queue. Holds nodes to perform first resolution
+   * attempt.
+   */
+  private val bootQueue = new Queue[Participant]
+
+
+
+  /**
    * Queue of nodes ready to resolve. These nodes have all dependencies
    * satisfied but "resolution listeners" not fired. This helps to keep
    * stack depth manageable (no recursive calls from listeners to listeners).
    */
   private val resolveQueue = new Queue[Participant]
 
+
+
+  override def participant(
+        onBoot : Wave ⇒ Unit,
+        onResolved : () ⇒ Unit,
+        onCleanup : () ⇒ Unit)
+      : Participant = {
+    if (stage != Wave.STAGE_RESOLUTION)
+      throw new IllegalStateException(
+        "Attempt to create participant in an unexpected state of " + stage)
+    val res = new Participant(onBoot, onResolved, onCleanup)
+    res.innerEngage()
+    bootQueue += res
+    res
+  }
 
 
   /**
@@ -72,7 +95,6 @@ final class Wave private() {
    * @throws Error if some nodes were unable to resolve.
    */
   private[wave] def run() : Unit = {
-    val bootQueue = new Queue[Participant]
     val cleanupQueue = new Queue[Participant]
 
     stage = Wave.STAGE_ENGAGEMENT
@@ -83,22 +105,26 @@ final class Wave private() {
     }
 
 
-    val totalNodes = bootQueue.size
-
-
+    var involvedNodes = 0
     stage = Wave.STAGE_RESOLUTION
-    while (!bootQueue.isEmpty)
-      bootQueue.dequeue.boot(this)
-    while (!resolveQueue.isEmpty) {
-      val node = resolveQueue.dequeue
-      node.notifyDeps(this)
-      cleanupQueue += node
-    }
+
+    do {
+      while (!bootQueue.isEmpty) {
+        bootQueue.dequeue.boot(this)
+        involvedNodes += 1
+      }
+      while (!resolveQueue.isEmpty) {
+        val node = resolveQueue.dequeue
+        node.notifyDeps(this)
+        cleanupQueue += node
+      }
+      /* Same as while (... && !resoveQueue.isEmpty) */
+    } while (!bootQueue.isEmpty)
 
 
-    if (totalNodes != cleanupQueue.size)
+    if (involvedNodes != cleanupQueue.size)
       throw new Error(
-        "Node completion mismatch, expected " + totalNodes +
+        "Node completion mismatch, expected " + involvedNodes +
         " but got " + cleanupQueue.size)
 
     stage = Wave.STAGE_CLEANUP

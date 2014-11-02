@@ -2,6 +2,7 @@ package ru.maxkar.lib.reactive.value
 
 import ru.maxkar.lib.reactive.event.Event
 import ru.maxkar.lib.reactive.wave.Wave
+import ru.maxkar.lib.reactive.wave.Participable
 
 /**
  * Behaviour "variable". This class allows direct "push" request
@@ -16,7 +17,8 @@ final class Variable[T] private[value] (
     extends Behaviour[T] {
 
   /** Event trigger associated with this variable. */
-  private val trigger = Event.trigger()
+  private val trigger = Event.trigger(
+    Participable.DefaultParticipable)
 
 
 

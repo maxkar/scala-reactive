@@ -13,12 +13,13 @@ import ru.maxkar.lib.reactive.wave.Wave
  * @param source source behaviour.
  */
 private[value] final class MapBehaviour[S, T](
-      mapper : S ⇒ T, source : Behaviour[S])
+      mapper : S ⇒ T, source : Behaviour[S],
+      ctx : BindContext)
     extends Behaviour[T] {
 
   /** Wave participant. */
-  private val participant = new Participant(
-    participate, resolved, reset)
+  private val participant =
+    ctx.update.participant(participate, resolved, reset)
   source.change.addCorrelatedNode(participant)
 
 
@@ -34,7 +35,7 @@ private[value] final class MapBehaviour[S, T](
 
 
   /** Participation handler. */
-  private def participate() : Unit =
+  private def participate(w : Wave) : Unit =
     source.change.defer(participant)
 
 

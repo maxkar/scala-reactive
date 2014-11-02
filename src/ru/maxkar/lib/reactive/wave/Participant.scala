@@ -6,22 +6,9 @@ import scala.collection.mutable.Queue
  * Node for participating inside the flow. This node
  * is used to track resolution order between different
  * components in each flow.
- * @param onBoot boot handler. This handler is invoke during
- * the first attempt to resolve this node.
- * @param onResolved resolved handler. This handler is invoked
- * after this node was resolved. It gives user a chance to
- * complete node update (by checking dependency nodes and updating
- * current node appropriately for example). It is too late to
- * perform wave-related operations (like deferring) so wave is
- * not passed to this handler.
- * @param onCleanup cleanup listener. This listener would be
- * invoked after the propagation wave. Main goal for this method
- * is to reset "events" to some "default" state. Events can't be reset
- * in the <code>onResolved</code> listeners because that events can
- * be consumed by other nodes in the flow.
  */
-final class Participant(
-      onBoot : () ⇒ Unit,
+final class Participant private[wave](
+      onBoot : Wave ⇒ Unit,
       onResolved : () ⇒ Unit,
       onCleanup : () ⇒ Unit) {
 
@@ -37,7 +24,7 @@ final class Participant(
    * Functions to ivoke before this wave node is finally resolved.
    * These function may install additional deferrances and dependencies.
    */
-  private val preResolutionListeners = new Queue[() ⇒ Unit]
+  private val preResolutionListeners = new Queue[Wave ⇒ Unit]
 
 
 
@@ -106,6 +93,14 @@ final class Participant(
   }
 
 
+  /**
+   * Immediately marks this node as engaged. Used by wave to
+   * mark a participant as active and under the resolution.
+   */
+  private[wave] def innerEngage() : Unit =
+    state = Participant.STATE_ENGAGED
+
+
 
   /**
    * Adds a dependency between nodes in a way that this node will
@@ -143,7 +138,7 @@ final class Participant(
    * in any wave.
    * @throws IllegalStateException if target node is not engaged in the wave.
    */
-  def deferCb(callback : () ⇒ Unit, target : Participant) : this.type = {
+  def deferCb(callback : (Wave) ⇒ Unit, target : Participant) : this.type = {
     invokeBeforeResolve(callback)
     defer(target)
   }
@@ -164,7 +159,7 @@ final class Participant(
    * @param callback callback to invoke.
    * @throws IllegalStateException if target node is not engaged in the wave.
    */
-  def invokeBeforeResolve(callback : () ⇒ Unit) : this.type = {
+  def invokeBeforeResolve(callback : (Wave) ⇒ Unit) : this.type = {
     if (state != Participant.STATE_ENGAGED)
       throw new IllegalStateException(
         "Cannot schedule invokation for non-engaged node, state is " + state)
@@ -197,7 +192,7 @@ final class Participant(
    * will be added into the propagation).
    */
   private[wave] def boot(wave : Wave) : Unit = {
-    onBoot()
+    onBoot(wave)
 
     /* Try to resolve immediately if possible. */
     tryResolve(wave)
@@ -219,7 +214,7 @@ final class Participant(
      * earlier than allowed.
      */
     while (pendingDeps == 0 && !preResolutionListeners.isEmpty)
-      preResolutionListeners.dequeue()()
+      preResolutionListeners.dequeue()(wave)
 
     /* New deps were discovered, return. */
     if (pendingDeps > 0)

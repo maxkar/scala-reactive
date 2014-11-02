@@ -10,7 +10,8 @@ import ru.maxkar.lib.reactive.wave.Wave
  * @param source behaviour to join.
  */
 private[value] final class Flatten[T](
-      source : Behaviour[Behaviour[T]])
+      source : Behaviour[Behaviour[T]],
+      ctx : BindContext)
     extends Behaviour[T] {
 
   /**
@@ -21,8 +22,8 @@ private[value] final class Flatten[T](
 
 
   /** Wave participant. */
-  private val participant = new Participant(
-    participate, resolved, reset)
+  private val participant =
+    ctx.update.participant(participate, resolved, reset)
   source.change.addCorrelatedNode(participant)
 
 
@@ -43,7 +44,7 @@ private[value] final class Flatten[T](
 
 
   /** Participation handler. */
-  private def participate() : Unit = {
+  private def participate(w : Wave) : Unit = {
     source.change.defer(participant)
     participant.invokeBeforeResolve(onBaseResolved)
   }
@@ -51,7 +52,7 @@ private[value] final class Flatten[T](
 
 
   /** Handles a "base resolved" event. */
-  private def onBaseResolved() : Unit =
+  private def onBaseResolved(w : Wave) : Unit =
     source.value.change.defer(participant)
 
 

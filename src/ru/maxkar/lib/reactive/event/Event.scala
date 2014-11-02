@@ -1,6 +1,7 @@
 package ru.maxkar.lib.reactive.event
 
 import ru.maxkar.lib.reactive.wave.Participant
+import ru.maxkar.lib.reactive.wave.Participable
 
 /**
  * Event source trait. Each event source have a
@@ -62,8 +63,11 @@ object Event {
 
 
 
-  /** Creates a new "trigger" event. */
-  def trigger() : Trigger = new Trigger()
+  /** Creates a new "trigger" event.
+   * @param ctx current initialization context.
+   */
+  def trigger(implicit ctx : Participable) : Trigger =
+    new Trigger(ctx)
 
 
 

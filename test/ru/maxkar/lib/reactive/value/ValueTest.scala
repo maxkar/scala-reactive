@@ -6,7 +6,7 @@ import ru.maxkar.lib.reactive.value.Behaviour._
 import ru.maxkar.lib.reactive.wave.Wave
 
 final class ValueTest extends FunSuite{
-  implicit val lifespan = Lifespan.forever
+  implicit val ctx = Behaviour.defaultBindContext
 
   /** Creates a function which counts number of changes of peer behaviour. */
   def count[T](v : Behaviour[T]) : () ⇒ Int = {

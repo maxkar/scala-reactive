@@ -5,6 +5,7 @@ import org.scalatest.FunSuite
 import ru.maxkar.lib.reactive.value.Lifespan._
 import ru.maxkar.lib.reactive.value.Behaviour._
 import ru.maxkar.lib.reactive.wave.Participant
+import ru.maxkar.lib.reactive.wave.Participable
 import ru.maxkar.lib.reactive.event.Event
 
 
@@ -12,7 +13,13 @@ import ru.maxkar.lib.reactive.event.Event
  * Tests dedicated to a lifecycle management.
  */
 final class LifecycleTests extends FunSuite {
-  implicit val lifecycle = Lifespan.forever
+  import scala.language.implicitConversions
+
+  implicit val lspan = Lifespan.forever
+
+  implicit def session2bindContext(session : Session) : BindContext =
+    new BindContext(session, Participable.DefaultParticipable)
+
 
   /** Ref-counting item. */
   private final class RefCount[+T](peer : Behaviour[T]) extends Behaviour[T] {
@@ -54,6 +61,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int) = x + 1
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = rv :< fn
 
     v.set(5)
@@ -74,6 +82,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int) = x + 1
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :> rv
 
     v.set(5)
@@ -96,6 +105,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = x + y
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :> rv :> rw
 
     v.set(6)
@@ -114,6 +124,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = x + y
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :> rv :> 4
 
     v.set(6)
@@ -136,6 +147,7 @@ final class LifecycleTests extends FunSuite {
     def fn(v : Boolean) = if (v) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :>> rv3
 
     v3.set(false)
@@ -166,6 +178,7 @@ final class LifecycleTests extends FunSuite {
     def fn(v : Int) = if (v < 10) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
 
     rv3 :< (t ⇒ (if (t == 5) session.destroy()))
     val vv = fn _ :>> rv3
@@ -191,6 +204,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = if (x < y) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :> rv3 :>> rv4
 
     v3.set(20)
@@ -223,6 +237,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = if (x < y) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
 
     v3 :< (t ⇒ (if (t == 5) session.destroy()))
     val vv = fn _ :> rv3 :>> rv4
@@ -251,6 +266,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = if (x < y) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = fn _ :> rv3 :>> 10
 
     v3.set(20)
@@ -279,6 +295,7 @@ final class LifecycleTests extends FunSuite {
     def fn(x : Int)(y : Int) = if (x < y) rv1 else rv2
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
 
     v3 :< (t ⇒ (if (t == 5) session.destroy()))
     val vv = fn _ :> rv3 :>> 10
@@ -305,6 +322,7 @@ final class LifecycleTests extends FunSuite {
     val rv3 = new RefCount(v3)
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     val vv = join(rv3)
 
     v3.set(rv2)
@@ -327,6 +345,7 @@ final class LifecycleTests extends FunSuite {
     val rv3 = new RefCount(v3)
 
     implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
     rv3 :< (x ⇒ if (x `eq` rv2) session.destroy())
     val vv = join(rv3)
 

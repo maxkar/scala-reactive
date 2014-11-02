@@ -1,6 +1,7 @@
 package ru.maxkar.lib.reactive.value
 
 import ru.maxkar.lib.reactive.event.Event
+import ru.maxkar.lib.reactive.wave.Participable
 
 
 /**
@@ -45,9 +46,9 @@ trait Behaviour[+T] {
    * Map function applicator.
    * @param mapper mapper function.
    */
-  def :<[R](mapper : T ⇒ R)(implicit lifespan : Lifespan) : Behaviour[R] = {
-    val res = new MapBehaviour(mapper, this)
-    lifespan.onDispose(res.dispose)
+  def :<[R](mapper : T ⇒ R)(implicit ctx : BindContext) : Behaviour[R] = {
+    val res = new MapBehaviour(mapper, this, ctx)
+    ctx.lifespan.onDispose(res.dispose)
     res
   }
 }
@@ -59,6 +60,14 @@ trait Behaviour[+T] {
  */
 object Behaviour {
   import scala.language.implicitConversions
+
+
+  /** Default variable binding context. Binds values
+   * with an infinite lifespan and no current wave.
+   */
+  val defaultBindContext : BindContext =
+    new BindContext(Lifespan.forever, Participable.DefaultParticipable)
+
 
 
   /** Creates a new behaviour variable.
@@ -81,30 +90,30 @@ object Behaviour {
   /** Automatic function uplift. */
   implicit class MapFnUplift[S, D](val value : S ⇒ D) extends AnyVal {
     @inline
-    def :> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
-      src.:<(value)(lifespan)
+    def :> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] =
+      src.:<(value)(ctx)
   }
 
 
 
   /** More applicative ops. */
   implicit class AppUnUplift[S, D](val value : Behaviour[S ⇒ D]) extends AnyVal {
-    def :> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] = {
-      val res = new ApplicativeBehaviour(value, src)
-      lifespan.onDispose(res.dispose)
+    def :> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] = {
+      val res = new ApplicativeBehaviour(value, src, ctx)
+      ctx.lifespan.onDispose(res.dispose)
       res
     }
 
-    def :> (src : S)(implicit lifespan : Lifespan) : Behaviour[D] =
-      value.:<(fn ⇒ fn(src))(lifespan)
+    def :> (src : S)(implicit ctx : BindContext) : Behaviour[D] =
+      value.:<(fn ⇒ fn(src))(ctx)
   }
 
 
 
   /** Monad-like function application. */
   implicit class MonadLikeFnApp[S, D](val value : S ⇒ Behaviour[D]) extends AnyVal {
-    def :>> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
-      join(value.:>(src)(lifespan))(lifespan)
+    def :>> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] =
+      join(value.:>(src)(ctx))(ctx)
   }
 
 
@@ -113,12 +122,12 @@ object Behaviour {
   implicit class MonadLikeUnApp[S, D](
         val value : Behaviour[S ⇒ Behaviour[D]])
       extends AnyVal {
-    def :>> (src : Behaviour[S])(implicit lifespan : Lifespan) : Behaviour[D] =
-      join(value.:>(src)(lifespan))(lifespan)
+    def :>> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] =
+      join(value.:>(src)(ctx))(ctx)
 
 
-    def :>> (src : S)(implicit lifespan : Lifespan) : Behaviour[D] =
-      join(value.:>(src)(lifespan))(lifespan)
+    def :>> (src : S)(implicit ctx : BindContext) : Behaviour[D] =
+      join(value.:>(src)(ctx))(ctx)
   }
 
 
@@ -126,9 +135,9 @@ object Behaviour {
   /**
    * Joins nested behaviours into one simple behaviour.
    */
-  def join[T](base : Behaviour[Behaviour[T]])(implicit lifespan : Lifespan) : Behaviour[T] = {
-    val res = new Flatten(base)
-    lifespan.onDispose(res.dispose)
+  def join[T](base : Behaviour[Behaviour[T]])(implicit ctx : BindContext) : Behaviour[T] = {
+    val res = new Flatten(base, ctx)
+    ctx.lifespan.onDispose(res.dispose)
     res
   }
 }

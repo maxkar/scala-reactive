@@ -1,5 +1,6 @@
 package ru.maxkar.lib.reactive.event
 
+import ru.maxkar.lib.reactive.wave.Participable
 import ru.maxkar.lib.reactive.wave.Participant
 import ru.maxkar.lib.reactive.wave.Wave
 
@@ -9,7 +10,7 @@ import ru.maxkar.lib.reactive.wave.Wave
  * After the wave this trigger will be reset to initial (false)
  * state.
  */
-final class Trigger private[event]() {
+final class Trigger private[event](ctx : Participable) {
 
   /** Value of this node. */
   private var fired = false
@@ -17,7 +18,7 @@ final class Trigger private[event]() {
 
 
   /** Flow participant for this node. */
-  private val participant = new Participant(() ⇒ (), () ⇒ (), cleanup)
+  private val participant = ctx.participant((x) ⇒ (), () ⇒ (), cleanup)
 
 
 
