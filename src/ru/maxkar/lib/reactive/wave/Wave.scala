@@ -45,7 +45,7 @@ final class Wave private() extends Participable {
 
   override def participant(
         onBoot : Wave ⇒ Unit,
-        onResolved : () ⇒ Unit,
+        onResolved : Wave ⇒ Unit,
         onCleanup : () ⇒ Unit)
       : Participant = {
     if (stage != Wave.STAGE_RESOLUTION)

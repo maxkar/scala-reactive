@@ -9,7 +9,7 @@ import scala.collection.mutable.Queue
  */
 final class Participant private[wave](
       onBoot : Wave ⇒ Unit,
-      onResolved : () ⇒ Unit,
+      onResolved : Wave ⇒ Unit,
       onCleanup : () ⇒ Unit) {
 
   /**
@@ -221,7 +221,7 @@ final class Participant private[wave](
       return
 
     state = Participant.STATE_RESOLVED
-    onResolved()
+    onResolved(wave)
     wave.enqueueResolved(this)
   }
 

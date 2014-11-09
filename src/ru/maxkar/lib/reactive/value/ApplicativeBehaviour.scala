@@ -43,7 +43,7 @@ private[value] final class ApplicativeBehaviour[S, R](
 
 
   /** Marks this node as resovled. */
-  private def resolved() : Unit = {
+  private def resolved(w : Wave) : Unit = {
     /* No update, just return. */
     if (!fn.change.value && !base.change.value)
       return

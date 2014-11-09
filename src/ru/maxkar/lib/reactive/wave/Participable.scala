@@ -38,7 +38,7 @@ abstract class Participable private[wave]() {
    */
   def participant(
         onBoot : Wave ⇒ Unit,
-        onResolved : () ⇒ Unit,
+        onResolved : Wave ⇒ Unit,
         onCleanup : () ⇒ Unit)
       : Participant
 }
@@ -59,7 +59,7 @@ final object Participable {
   final object DefaultParticipable extends Participable {
     override def participant(
           onBoot : Wave ⇒ Unit,
-          onResolved : () ⇒ Unit,
+          onResolved : Wave ⇒ Unit,
           onCleanup : () ⇒ Unit)
         : Participant =
       new Participant(onBoot, onResolved, onCleanup)

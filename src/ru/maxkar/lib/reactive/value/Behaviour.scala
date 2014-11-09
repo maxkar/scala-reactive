@@ -51,6 +51,36 @@ trait Behaviour[+T] {
     ctx.lifespan.onDispose(res.dispose)
     res
   }
+
+
+
+  /**
+   * Value-based submodel dispatch. Creates a new
+   * submodel which lifetime is bound to lifetime
+   * of <em>current</em> value of this behaviour.
+   * When value changes, subcontext would be disposed and
+   * new subcontext would be created allowing for a
+   * completely new model.
+   */
+  def :/<[R](
+        mapper : (T, BindContext) ⇒ R)(
+        implicit ctx : BindContext)
+      : Behaviour[R] = {
+    var res = new SubmodelDispatch(mapper, this, ctx)
+    ctx.lifespan.onDispose(res.dispose)
+    res
+  }
+
+
+
+  /**
+   * Monad-like submodel dispatch.
+   */
+  def :/<<[R](
+        mapper : (T, BindContext) ⇒ Behaviour[R])(
+        implicit ctx : BindContext)
+      : Behaviour[R] =
+    Behaviour.join(this :/< mapper)
 }
 
 
@@ -128,6 +158,28 @@ object Behaviour {
 
     def :>> (src : S)(implicit ctx : BindContext) : Behaviour[D] =
       join(value.:>(src)(ctx))(ctx)
+  }
+
+
+
+  /** Dispatch (lifecycle binding) operation on function. */
+  implicit class DispatchFlat[S, D](
+        val value : (S, BindContext) ⇒ D)
+      extends AnyVal {
+    @inline
+    def :/> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] =
+      src :/< value
+  }
+
+
+
+  /** Dispatch (lifecycle binding) operation on monadic function. */
+  implicit class DispatchMonadic[S, D](
+        val value : (S, BindContext) ⇒ Behaviour[D])
+      extends AnyVal {
+    @inline
+    def :/>> (src : Behaviour[S])(implicit ctx : BindContext) : Behaviour[D] =
+      src :/<< value
   }
 
 

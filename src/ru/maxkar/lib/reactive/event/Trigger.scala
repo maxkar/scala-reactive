@@ -18,7 +18,7 @@ final class Trigger private[event](ctx : Participable) {
 
 
   /** Flow participant for this node. */
-  private val participant = ctx.participant((x) ⇒ (), () ⇒ (), cleanup)
+  private val participant = ctx.participant((x) ⇒ (), (x) ⇒ (), cleanup)
 
 
 

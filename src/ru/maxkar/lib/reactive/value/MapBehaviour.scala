@@ -41,7 +41,7 @@ private[value] final class MapBehaviour[S, T](
 
 
   /** Marks this node as resovled. */
-  private def resolved() : Unit = {
+  private def resolved(w : Wave) : Unit = {
     /* No update, just return. */
     if (!source.change.value)
       return

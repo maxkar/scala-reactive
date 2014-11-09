@@ -58,7 +58,7 @@ private[value] final class Flatten[T](
 
 
   /** Marks this node as resovled. */
-  private def resolved() : Unit = {
+  private def resolved(w : Wave) : Unit = {
     if (disposed)
       return
 

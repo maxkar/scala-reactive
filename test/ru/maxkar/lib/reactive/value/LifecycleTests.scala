@@ -353,4 +353,53 @@ final class LifecycleTests extends FunSuite {
 
     checkRefs(rv1, rv2, rv3)
   }
+
+
+
+
+  test("Value-based deconstruction work") {
+    val v1 = variable(2)
+    val v2 = variable(6)
+    val v3 = variable(6)
+    val v4 = variable(-1)
+    val rv1 = new RefCount(v1)
+    val rv2 = new RefCount(v2)
+    val rv3 = new RefCount(v3)
+    val rv4 = new RefCount(v4)
+
+    implicit val session = mkSession()
+    implicit val ctx = new BindContext(session, Participable.DefaultParticipable)
+
+    def fn(base : Int, scope : BindContext) : Behaviour[Int] = {
+      implicit val ctx = scope
+      if (base > 0)
+        ((_ : Int) + (_ : Int)).curried :> rv1 :> rv2
+      else
+        ((_  : Int) - (_ : Int)).curried :> rv1 :> rv3
+    }
+
+    val res = fn _ :/>> rv4
+
+    assert(-4 === res.value)
+
+    v3.set(2)
+    assert(0 === res.value)
+
+    v4.set(7)
+    assert(8 === res.value)
+    checkRefs(rv3)
+
+
+    v2.set(6)
+    assert(8 === res.value)
+    v1.set(10)
+    assert(16 === res.value)
+
+    v4.set(-6)
+    assert(8 === res.value)
+    checkRefs(rv2)
+
+    session.destroy()
+    checkRefs(rv1, rv2, rv3, rv4)
+  }
 }

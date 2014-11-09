@@ -258,4 +258,55 @@ final class ValueTest extends FunSuite{
     assert(3 === r.value)
     assert(3 === ups())
   }
+
+
+
+  test("Value-based dispatch work") {
+    val v1 = variable(2)
+    val v2 = variable(6)
+    val v3 = variable(-1)
+    var ib = 0
+
+    def fn(base : Int, scope : BindContext) : Behaviour[Int] = {
+      implicit val ctx = scope
+      v1 :< (_ ⇒ ib += 1)
+      if (base > 0)
+        ((_ : Int) + (_ : Int)).curried :> v1 :> v2
+      else
+        ((_  : Int) - (_ : Int)).curried :> v1 :> v2
+    }
+
+    val res = fn _ :/>> v3
+    val ups = count(res)
+
+    assert(-4 === res.value)
+    assert(0 === ups())
+    /* One update during construction. */
+    assert(1 === ib)
+
+    v2.set(2)
+    assert(0 === res.value)
+    assert(1 === ups())
+    assert(1 === ib)
+
+    v3.set(7)
+    assert(4 === res.value)
+    assert(2 === ups())
+    /* One update during re-construction. */
+    assert(2 === ib)
+
+
+    v2.set(6)
+    assert(8 === res.value)
+    assert(3 === ups())
+    assert(2 === ib)
+
+    v1.set(10)
+    assert(16 === res.value)
+    assert(4 === ups())
+    /* Only one update in active scope, previous scope shold be destroyed.
+     * Monadic application gives 4 here!
+     */
+    assert(3 === ib)
+  }
 }
